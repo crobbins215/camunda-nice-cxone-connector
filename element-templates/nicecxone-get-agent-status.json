@@ -1,0 +1,422 @@
+{
+  "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
+  "name": "NICE CXone: Get Agent Status",
+  "id": "io.camunda.connectors.nicecxone.getagentstatus:1",
+  "version": 1,
+  "description": "Query real-time agent states, skill queue metrics, and agent activity from NICE CXone. Use this to check agent availability before routing work or to monitor SLAs.",
+  "documentationRef": "https://developer.niceincontact.com/API/RealTimeDataAPI",
+  "appliesTo": [
+    "bpmn:ServiceTask"
+  ],
+  "elementType": {
+    "value": "bpmn:ServiceTask"
+  },
+  "icon": {
+    "contents": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='8' fill='%23002855'/%3E%3Ccircle cx='32' cy='28' r='10' fill='none' stroke='%2300AEEF' stroke-width='2'/%3E%3Ccircle cx='32' cy='28' r='3' fill='%2300AEEF'/%3E%3Ctext x='50%25' y='72%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Arial,sans-serif' font-size='9' font-weight='bold'%3EStatus%3C/text%3E%3C/svg%3E"
+  },
+  "groups": [
+    {
+      "id": "authentication",
+      "label": "CXone Authentication"
+    },
+    {
+      "id": "query",
+      "label": "Query Configuration"
+    },
+    {
+      "id": "filters",
+      "label": "Filters"
+    },
+    {
+      "id": "output",
+      "label": "Output Mapping"
+    },
+    {
+      "id": "errors",
+      "label": "Error Handling"
+    }
+  ],
+  "properties": [
+    {
+      "type": "Hidden",
+      "value": "io.camunda:http-json:1",
+      "binding": {
+        "type": "zeebe:taskDefinition:type"
+      }
+    },
+    {
+      "type": "Hidden",
+      "value": "get",
+      "binding": {
+        "type": "zeebe:input",
+        "name": "method"
+      }
+    },
+
+    {
+      "id": "cxoneBaseUrl",
+      "label": "CXone API Base URL",
+      "description": "Your CXone regional API endpoint (e.g. https://api-na1.niceincontact.com)",
+      "type": "String",
+      "group": "authentication",
+      "feel": "optional",
+      "binding": {
+        "type": "zeebe:input",
+        "name": "cxoneBaseUrl"
+      },
+      "constraints": {
+        "notEmpty": true,
+        "pattern": {
+          "value": "^(=|\\{\\{|https?://).*$",
+          "message": "Must be a valid URL (e.g. https://api-na1.niceincontact.com) or a secret reference ({{secrets.CXONE_BASE_URL}})"
+        }
+      }
+    },
+    {
+      "id": "authType",
+      "label": "Authentication Type",
+      "type": "Dropdown",
+      "value": "bearer",
+      "group": "authentication",
+      "choices": [
+        {
+          "name": "Bearer Token",
+          "value": "bearer"
+        },
+        {
+          "name": "OAuth 2.0 Client Credentials",
+          "value": "oauth-client-credentials-flow"
+        }
+      ],
+      "binding": {
+        "type": "zeebe:input",
+        "name": "authentication.type"
+      }
+    },
+    {
+      "label": "CXone Bearer Token",
+      "description": "A valid access token. Use {{secrets.CXONE_TOKEN}}",
+      "type": "String",
+      "group": "authentication",
+      "feel": "optional",
+      "binding": {
+        "type": "zeebe:input",
+        "name": "authentication.token"
+      },
+      "constraints": {
+        "notEmpty": true
+      },
+      "condition": {
+        "property": "authType",
+        "equals": "bearer"
+      }
+    },
+    {
+      "label": "OAuth Token Endpoint",
+      "description": "CXone token URL. Use {{secrets.CXONE_TOKEN_ENDPOINT}}",
+      "type": "String",
+      "group": "authentication",
+      "feel": "optional",
+      "binding": {
+        "type": "zeebe:input",
+        "name": "authentication.oauthTokenEndpoint"
+      },
+      "constraints": {
+        "notEmpty": true
+      },
+      "condition": {
+        "property": "authType",
+        "equals": "oauth-client-credentials-flow"
+      }
+    },
+    {
+      "label": "Client ID",
+      "description": "Use {{secrets.CXONE_CLIENT_ID}}",
+      "type": "String",
+      "group": "authentication",
+      "feel": "optional",
+      "binding": {
+        "type": "zeebe:input",
+        "name": "authentication.clientId"
+      },
+      "constraints": {
+        "notEmpty": true
+      },
+      "condition": {
+        "property": "authType",
+        "equals": "oauth-client-credentials-flow"
+      }
+    },
+    {
+      "label": "Client Secret",
+      "description": "Use {{secrets.CXONE_CLIENT_SECRET}}",
+      "type": "String",
+      "group": "authentication",
+      "feel": "optional",
+      "binding": {
+        "type": "zeebe:input",
+        "name": "authentication.clientSecret"
+      },
+      "constraints": {
+        "notEmpty": true
+      },
+      "condition": {
+        "property": "authType",
+        "equals": "oauth-client-credentials-flow"
+      }
+    },
+    {
+      "label": "Client Authentication",
+      "type": "Dropdown",
+      "value": "basicAuthHeader",
+      "group": "authentication",
+      "choices": [
+        {
+          "name": "Send as Basic Auth header",
+          "value": "basicAuthHeader"
+        },
+        {
+          "name": "Send credentials in body",
+          "value": "credentialsBody"
+        }
+      ],
+      "binding": {
+        "type": "zeebe:input",
+        "name": "authentication.clientAuthentication"
+      },
+      "condition": {
+        "property": "authType",
+        "equals": "oauth-client-credentials-flow"
+      }
+    },
+
+    {
+      "id": "apiVersion",
+      "label": "API Version",
+      "type": "String",
+      "value": "v31.0",
+      "group": "query",
+      "feel": "optional",
+      "binding": {
+        "type": "zeebe:input",
+        "name": "apiVersion"
+      }
+    },
+    {
+      "id": "queryType",
+      "label": "What to Query",
+      "description": "Select the type of real-time data to retrieve",
+      "type": "Dropdown",
+      "value": "agentStates",
+      "group": "query",
+      "choices": [
+        {
+          "name": "Agent States — current state of all agents",
+          "value": "agentStates"
+        },
+        {
+          "name": "Single Agent State — state of a specific agent",
+          "value": "singleAgentState"
+        },
+        {
+          "name": "Skill Queue Summary — contacts waiting per skill",
+          "value": "skillSummary"
+        },
+        {
+          "name": "Agent Activity — what agents are currently doing",
+          "value": "agentActivity"
+        }
+      ],
+      "binding": {
+        "type": "zeebe:input",
+        "name": "queryType"
+      }
+    },
+
+    {
+      "label": "URL",
+      "type": "Hidden",
+      "value": "=cxoneBaseUrl + \"/incontactapi/services/\" + apiVersion + \"/agents/states\"",
+      "binding": {
+        "type": "zeebe:input",
+        "name": "url"
+      },
+      "condition": {
+        "property": "queryType",
+        "equals": "agentStates"
+      }
+    },
+    {
+      "label": "URL",
+      "type": "Hidden",
+      "value": "=cxoneBaseUrl + \"/incontactapi/services/\" + apiVersion + \"/agents/\" + agentId + \"/states\"",
+      "binding": {
+        "type": "zeebe:input",
+        "name": "url"
+      },
+      "condition": {
+        "property": "queryType",
+        "equals": "singleAgentState"
+      }
+    },
+    {
+      "label": "URL",
+      "type": "Hidden",
+      "value": "=cxoneBaseUrl + \"/incontactapi/services/\" + apiVersion + \"/skills/summary\"",
+      "binding": {
+        "type": "zeebe:input",
+        "name": "url"
+      },
+      "condition": {
+        "property": "queryType",
+        "equals": "skillSummary"
+      }
+    },
+    {
+      "label": "URL",
+      "type": "Hidden",
+      "value": "=cxoneBaseUrl + \"/incontactapi/services/\" + apiVersion + \"/agents/activity\"",
+      "binding": {
+        "type": "zeebe:input",
+        "name": "url"
+      },
+      "condition": {
+        "property": "queryType",
+        "equals": "agentActivity"
+      }
+    },
+
+    {
+      "id": "agentId",
+      "label": "Agent ID",
+      "description": "The numeric CXone Agent ID to query",
+      "type": "String",
+      "group": "filters",
+      "feel": "optional",
+      "binding": {
+        "type": "zeebe:input",
+        "name": "agentId"
+      },
+      "constraints": {
+        "notEmpty": true
+      },
+      "condition": {
+        "property": "queryType",
+        "equals": "singleAgentState"
+      }
+    },
+    {
+      "id": "skillFilter",
+      "label": "Skill ID Filter",
+      "description": "Optional: filter results to a specific skill ID",
+      "type": "String",
+      "group": "filters",
+      "feel": "optional",
+      "optional": true,
+      "binding": {
+        "type": "zeebe:input",
+        "name": "skillId"
+      },
+      "condition": {
+        "property": "queryType",
+        "oneOf": ["agentStates", "skillSummary", "agentActivity"]
+      }
+    },
+    {
+      "label": "Query Parameters",
+      "description": "Additional query params as FEEL context (e.g. {updatedSince: \"2024-01-01\", fields: \"agentId,state\"})",
+      "type": "Text",
+      "group": "filters",
+      "feel": "required",
+      "optional": true,
+      "binding": {
+        "type": "zeebe:input",
+        "name": "queryParameters"
+      }
+    },
+    {
+      "label": "Connection Timeout (seconds)",
+      "type": "String",
+      "value": "20",
+      "group": "filters",
+      "feel": "optional",
+      "optional": true,
+      "binding": {
+        "type": "zeebe:input",
+        "name": "connectionTimeoutInSeconds"
+      }
+    },
+    {
+      "label": "Read Timeout (seconds)",
+      "type": "String",
+      "value": "20",
+      "group": "filters",
+      "feel": "optional",
+      "optional": true,
+      "binding": {
+        "type": "zeebe:input",
+        "name": "readTimeoutInSeconds"
+      }
+    },
+
+    {
+      "label": "Result Variable",
+      "description": "Process variable to store the real-time data response",
+      "type": "String",
+      "group": "output",
+      "value": "agentStatusResult",
+      "binding": {
+        "type": "zeebe:taskHeader",
+        "key": "resultVariable"
+      }
+    },
+    {
+      "label": "Result Expression",
+      "description": "FEEL expression to map the response. Default extracts agent states list with availability summary.",
+      "type": "Text",
+      "group": "output",
+      "feel": "required",
+      "value": "={\n  agents: response.body.agentStates,\n  totalAgents: count(response.body.agentStates),\n  availableAgents: count(response.body.agentStates[agentStateName = \"Available\"]),\n  busyAgents: count(response.body.agentStates[agentStateName = \"Unavailable\"]),\n  hasAvailableAgents: count(response.body.agentStates[agentStateName = \"Available\"]) > 0\n}",
+      "binding": {
+        "type": "zeebe:taskHeader",
+        "key": "resultExpression"
+      }
+    },
+
+    {
+      "label": "Error Expression",
+      "type": "Text",
+      "group": "errors",
+      "feel": "required",
+      "value": "if error.code = \"401\" then bpmnError(\"CXONE_AUTH_ERROR\", \"Authentication failed — check token or credentials\")\nelse if error.code = \"403\" then bpmnError(\"CXONE_FORBIDDEN\", \"Permission denied — API user lacks Real-Time Data access\")\nelse if error.code = \"404\" then bpmnError(\"CXONE_NOT_FOUND\", \"Agent or resource not found\")\nelse if error.code = \"429\" then bpmnError(\"CXONE_RATE_LIMIT\", \"Rate limit exceeded — retry later\")\nelse if error.code = \"500\" then bpmnError(\"CXONE_SERVER_ERROR\", \"CXone internal error\")\nelse null",
+      "binding": {
+        "type": "zeebe:taskHeader",
+        "key": "errorExpression"
+      }
+    },
+    {
+      "label": "Retry Count",
+      "type": "String",
+      "value": "3",
+      "group": "errors",
+      "feel": "optional",
+      "optional": true,
+      "binding": {
+        "type": "zeebe:taskHeader",
+        "key": "retryCount"
+      }
+    },
+    {
+      "label": "Retry Backoff",
+      "type": "String",
+      "value": "PT10S",
+      "group": "errors",
+      "feel": "optional",
+      "optional": true,
+      "binding": {
+        "type": "zeebe:taskHeader",
+        "key": "retryBackoff"
+      }
+    }
+  ]
+}

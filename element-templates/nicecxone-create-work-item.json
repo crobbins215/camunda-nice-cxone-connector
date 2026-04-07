@@ -1,0 +1,394 @@
+{
+  "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
+  "name": "NICE CXone: Create Work Item",
+  "id": "io.camunda.connectors.nicecxone.createworkitem:1",
+  "version": 1,
+  "description": "Route a work item to a NICE CXone agent via the Patron API. Use this to push complaints, tasks, or cases from a Camunda process into the CXone contact center queue.",
+  "documentationRef": "https://developer.niceincontact.com/API/PatronAPI",
+  "appliesTo": [
+    "bpmn:ServiceTask"
+  ],
+  "elementType": {
+    "value": "bpmn:ServiceTask"
+  },
+  "icon": {
+    "contents": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='8' fill='%23002855'/%3E%3Ctext x='50%25' y='38%25' dominant-baseline='middle' text-anchor='middle' fill='%2300AEEF' font-family='Arial,sans-serif' font-size='22' font-weight='bold'%3E%2B%3C/text%3E%3Ctext x='50%25' y='68%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Arial,sans-serif' font-size='9' font-weight='bold'%3EWork Item%3C/text%3E%3C/svg%3E"
+  },
+  "groups": [
+    {
+      "id": "authentication",
+      "label": "CXone Authentication"
+    },
+    {
+      "id": "workItem",
+      "label": "Work Item Configuration"
+    },
+    {
+      "id": "payload",
+      "label": "Work Item Payload"
+    },
+    {
+      "id": "output",
+      "label": "Output Mapping"
+    },
+    {
+      "id": "errors",
+      "label": "Error Handling"
+    }
+  ],
+  "properties": [
+    {
+      "type": "Hidden",
+      "value": "io.camunda:http-json:1",
+      "binding": {
+        "type": "zeebe:taskDefinition:type"
+      }
+    },
+    {
+      "type": "Hidden",
+      "value": "post",
+      "binding": {
+        "type": "zeebe:input",
+        "name": "method"
+      }
+    },
+
+    {
+      "id": "cxoneBaseUrl",
+      "label": "CXone API Base URL",
+      "description": "Your CXone regional API endpoint (e.g. https://api-na1.niceincontact.com)",
+      "type": "String",
+      "group": "authentication",
+      "feel": "optional",
+      "binding": {
+        "type": "zeebe:input",
+        "name": "cxoneBaseUrl"
+      },
+      "constraints": {
+        "notEmpty": true,
+        "pattern": {
+          "value": "^(=|\\{\\{|https?://).*$",
+          "message": "Must be a valid URL (e.g. https://api-na1.niceincontact.com) or a secret reference ({{secrets.CXONE_BASE_URL}})"
+        }
+      }
+    },
+    {
+      "id": "authType",
+      "label": "Authentication Type",
+      "description": "How to authenticate with CXone",
+      "type": "Dropdown",
+      "value": "bearer",
+      "group": "authentication",
+      "choices": [
+        {
+          "name": "Bearer Token",
+          "value": "bearer"
+        },
+        {
+          "name": "OAuth 2.0 Client Credentials",
+          "value": "oauth-client-credentials-flow"
+        }
+      ],
+      "binding": {
+        "type": "zeebe:input",
+        "name": "authentication.type"
+      }
+    },
+    {
+      "label": "CXone Bearer Token",
+      "description": "A valid access token. Use {{secrets.CXONE_TOKEN}}",
+      "type": "String",
+      "group": "authentication",
+      "feel": "optional",
+      "binding": {
+        "type": "zeebe:input",
+        "name": "authentication.token"
+      },
+      "constraints": {
+        "notEmpty": true
+      },
+      "condition": {
+        "property": "authType",
+        "equals": "bearer"
+      }
+    },
+    {
+      "label": "OAuth Token Endpoint",
+      "description": "CXone token URL. Use {{secrets.CXONE_TOKEN_ENDPOINT}}",
+      "type": "String",
+      "group": "authentication",
+      "feel": "optional",
+      "binding": {
+        "type": "zeebe:input",
+        "name": "authentication.oauthTokenEndpoint"
+      },
+      "constraints": {
+        "notEmpty": true
+      },
+      "condition": {
+        "property": "authType",
+        "equals": "oauth-client-credentials-flow"
+      }
+    },
+    {
+      "label": "Client ID",
+      "description": "CXone application Client ID. Use {{secrets.CXONE_CLIENT_ID}}",
+      "type": "String",
+      "group": "authentication",
+      "feel": "optional",
+      "binding": {
+        "type": "zeebe:input",
+        "name": "authentication.clientId"
+      },
+      "constraints": {
+        "notEmpty": true
+      },
+      "condition": {
+        "property": "authType",
+        "equals": "oauth-client-credentials-flow"
+      }
+    },
+    {
+      "label": "Client Secret",
+      "description": "CXone application Client Secret. Use {{secrets.CXONE_CLIENT_SECRET}}",
+      "type": "String",
+      "group": "authentication",
+      "feel": "optional",
+      "binding": {
+        "type": "zeebe:input",
+        "name": "authentication.clientSecret"
+      },
+      "constraints": {
+        "notEmpty": true
+      },
+      "condition": {
+        "property": "authType",
+        "equals": "oauth-client-credentials-flow"
+      }
+    },
+    {
+      "label": "Client Authentication",
+      "description": "How to send credentials to the token endpoint",
+      "type": "Dropdown",
+      "value": "basicAuthHeader",
+      "group": "authentication",
+      "choices": [
+        {
+          "name": "Send as Basic Auth header",
+          "value": "basicAuthHeader"
+        },
+        {
+          "name": "Send credentials in body",
+          "value": "credentialsBody"
+        }
+      ],
+      "binding": {
+        "type": "zeebe:input",
+        "name": "authentication.clientAuthentication"
+      },
+      "condition": {
+        "property": "authType",
+        "equals": "oauth-client-credentials-flow"
+      }
+    },
+
+    {
+      "id": "apiVersion",
+      "label": "API Version",
+      "description": "CXone API version",
+      "type": "String",
+      "value": "v31.0",
+      "group": "workItem",
+      "feel": "optional",
+      "binding": {
+        "type": "zeebe:input",
+        "name": "apiVersion"
+      }
+    },
+    {
+      "id": "pointOfContact",
+      "label": "Point of Contact",
+      "description": "The CXone Point of Contact (PoC) that receives this work item. This determines the skill/queue routing. Find this in CXone Admin > Routing > Points of Contact.",
+      "type": "String",
+      "group": "workItem",
+      "feel": "optional",
+      "binding": {
+        "type": "zeebe:input",
+        "name": "pointOfContact"
+      },
+      "constraints": {
+        "notEmpty": true
+      }
+    },
+    {
+      "id": "workItemType",
+      "label": "Work Item Type",
+      "description": "The type of work item to create",
+      "type": "Dropdown",
+      "value": "workItem",
+      "group": "workItem",
+      "choices": [
+        {
+          "name": "Work Item (general task)",
+          "value": "workItem"
+        },
+        {
+          "name": "Callback Request",
+          "value": "callback"
+        }
+      ],
+      "binding": {
+        "type": "zeebe:input",
+        "name": "workItemType"
+      }
+    },
+
+    {
+      "label": "URL",
+      "type": "Hidden",
+      "value": "=cxoneBaseUrl + \"/incontactapi/services/\" + apiVersion + \"/queuecallback\"",
+      "binding": {
+        "type": "zeebe:input",
+        "name": "url"
+      },
+      "condition": {
+        "property": "workItemType",
+        "equals": "callback"
+      }
+    },
+    {
+      "label": "URL",
+      "type": "Hidden",
+      "value": "=cxoneBaseUrl + \"/incontactapi/services/\" + apiVersion + \"/interactions/work-items\"",
+      "binding": {
+        "type": "zeebe:input",
+        "name": "url"
+      },
+      "condition": {
+        "property": "workItemType",
+        "equals": "workItem"
+      }
+    },
+
+    {
+      "id": "workItemPayload",
+      "label": "Work Item Body",
+      "description": "JSON body for the work item. Must include 'pointOfContact' and any custom data. Example:\n{\n  \"pointOfContact\": \"MyWorkItemPoC\",\n  \"workItemId\": \"complaint-12345\",\n  \"workItemPayload\": \"Customer complaint about billing\",\n  \"workItemType\": \"complaint\"\n}",
+      "type": "Text",
+      "group": "payload",
+      "feel": "required",
+      "value": "={\n  \"pointOfContact\": pointOfContact,\n  \"workItemId\": \"camunda-\" + string(processInstanceKey),\n  \"workItemPayload\": workItemDescription,\n  \"workItemType\": \"complaint\"\n}",
+      "binding": {
+        "type": "zeebe:input",
+        "name": "body"
+      },
+      "condition": {
+        "property": "workItemType",
+        "equals": "workItem"
+      }
+    },
+    {
+      "id": "callbackPayload",
+      "label": "Callback Body",
+      "description": "JSON body for the callback request. Must include phone number and skill.\n{\n  \"phoneNumber\": \"+15551234567\",\n  \"callerID\": \"+15559876543\",\n  \"skillId\": 12345,\n  \"targetAgentId\": 67890\n}",
+      "type": "Text",
+      "group": "payload",
+      "feel": "required",
+      "value": "={\n  \"phoneNumber\": customerPhone,\n  \"callerID\": callbackNumber,\n  \"skillId\": skillId\n}",
+      "binding": {
+        "type": "zeebe:input",
+        "name": "body"
+      },
+      "condition": {
+        "property": "workItemType",
+        "equals": "callback"
+      }
+    },
+    {
+      "label": "Custom Headers",
+      "description": "Additional HTTP headers (optional)",
+      "type": "Text",
+      "group": "payload",
+      "feel": "required",
+      "optional": true,
+      "binding": {
+        "type": "zeebe:input",
+        "name": "headers"
+      }
+    },
+    {
+      "label": "Connection Timeout (seconds)",
+      "type": "String",
+      "value": "20",
+      "group": "payload",
+      "feel": "optional",
+      "optional": true,
+      "binding": {
+        "type": "zeebe:input",
+        "name": "connectionTimeoutInSeconds"
+      }
+    },
+
+    {
+      "label": "Result Variable",
+      "description": "Process variable to store the CXone response",
+      "type": "String",
+      "group": "output",
+      "value": "workItemResult",
+      "binding": {
+        "type": "zeebe:taskHeader",
+        "key": "resultVariable"
+      }
+    },
+    {
+      "label": "Result Expression",
+      "description": "FEEL expression to extract fields from the response. The default extracts the contact ID and status.",
+      "type": "Text",
+      "group": "output",
+      "feel": "required",
+      "value": "={contactId: response.body.contactId, workItemAccepted: response.status = 200 or response.status = 202}",
+      "binding": {
+        "type": "zeebe:taskHeader",
+        "key": "resultExpression"
+      }
+    },
+
+    {
+      "label": "Error Expression",
+      "description": "Map CXone error responses to BPMN errors",
+      "type": "Text",
+      "group": "errors",
+      "feel": "required",
+      "value": "if error.code = \"401\" then bpmnError(\"CXONE_AUTH_ERROR\", \"Authentication failed — check token or OAuth credentials\")\nelse if error.code = \"403\" then bpmnError(\"CXONE_FORBIDDEN\", \"Permission denied — API user lacks Patron API access\")\nelse if error.code = \"404\" then bpmnError(\"CXONE_POC_NOT_FOUND\", \"Point of Contact not found — verify PoC name in CXone Admin\")\nelse if error.code = \"429\" then bpmnError(\"CXONE_RATE_LIMIT\", \"Rate limit exceeded — retry later\")\nelse if error.code = \"500\" then bpmnError(\"CXONE_SERVER_ERROR\", \"CXone internal error\")\nelse null",
+      "binding": {
+        "type": "zeebe:taskHeader",
+        "key": "errorExpression"
+      }
+    },
+    {
+      "label": "Retry Count",
+      "type": "String",
+      "value": "3",
+      "group": "errors",
+      "feel": "optional",
+      "optional": true,
+      "binding": {
+        "type": "zeebe:taskHeader",
+        "key": "retryCount"
+      }
+    },
+    {
+      "label": "Retry Backoff",
+      "description": "Backoff between retries (ISO 8601 duration)",
+      "type": "String",
+      "value": "PT10S",
+      "group": "errors",
+      "feel": "optional",
+      "optional": true,
+      "binding": {
+        "type": "zeebe:taskHeader",
+        "key": "retryBackoff"
+      }
+    }
+  ]
+}

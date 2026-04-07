@@ -1,0 +1,661 @@
+{
+  "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
+  "name": "NICE CXone Connector",
+  "id": "io.camunda.connectors.nicecxone:1",
+  "version": 1,
+  "description": "Orchestrate NICE CXone contact center operations — manage agents, create work items, query real-time data, and more.",
+  "documentationRef": "https://developer.niceincontact.com/API",
+  "appliesTo": [
+    "bpmn:ServiceTask"
+  ],
+  "elementType": {
+    "value": "bpmn:ServiceTask"
+  },
+  "icon": {
+    "contents": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='8' fill='%23002855'/%3E%3Ctext x='50%25' y='54%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Arial,sans-serif' font-size='11' font-weight='bold'%3ECXone%3C/text%3E%3C/svg%3E"
+  },
+  "groups": [
+    {
+      "id": "authentication",
+      "label": "CXone Authentication"
+    },
+    {
+      "id": "operation",
+      "label": "Operation"
+    },
+    {
+      "id": "operationDetails",
+      "label": "Operation Details"
+    },
+    {
+      "id": "output",
+      "label": "Output Mapping"
+    },
+    {
+      "id": "errors",
+      "label": "Error Handling"
+    }
+  ],
+  "properties": [
+    {
+      "type": "Hidden",
+      "value": "io.camunda:http-json:1",
+      "binding": {
+        "type": "zeebe:taskDefinition:type"
+      }
+    },
+
+    {
+      "id": "cxoneBaseUrl",
+      "label": "CXone API Base URL",
+      "description": "Your CXone API endpoint from API discovery (e.g. https://api-na1.niceincontact.com). See CXone platform setup guide.",
+      "type": "String",
+      "group": "authentication",
+      "feel": "optional",
+      "binding": {
+        "type": "zeebe:input",
+        "name": "cxoneBaseUrl"
+      },
+      "constraints": {
+        "notEmpty": true,
+        "pattern": {
+          "value": "^(=|\\{\\{|https?://).*$",
+          "message": "Must be a valid URL (e.g. https://api-na1.niceincontact.com) or a secret reference ({{secrets.CXONE_BASE_URL}})"
+        }
+      }
+    },
+    {
+      "id": "authType",
+      "label": "Authentication Type",
+      "description": "How to authenticate with CXone APIs",
+      "type": "Dropdown",
+      "value": "bearer",
+      "group": "authentication",
+      "choices": [
+        {
+          "name": "Bearer Token (pre-obtained)",
+          "value": "bearer"
+        },
+        {
+          "name": "OAuth 2.0 Client Credentials",
+          "value": "oauth-client-credentials-flow"
+        }
+      ],
+      "binding": {
+        "type": "zeebe:input",
+        "name": "authentication.type"
+      }
+    },
+    {
+      "label": "CXone Bearer Token",
+      "description": "A valid CXone access token. Use Camunda secrets: {{secrets.CXONE_TOKEN}}",
+      "type": "String",
+      "group": "authentication",
+      "feel": "optional",
+      "binding": {
+        "type": "zeebe:input",
+        "name": "authentication.token"
+      },
+      "constraints": {
+        "notEmpty": true
+      },
+      "condition": {
+        "property": "authType",
+        "equals": "bearer"
+      }
+    },
+    {
+      "label": "OAuth Token Endpoint",
+      "description": "CXone token URL (e.g. https://cxone.niceincontact.com/auth/token). Use {{secrets.CXONE_TOKEN_ENDPOINT}}",
+      "type": "String",
+      "group": "authentication",
+      "feel": "optional",
+      "binding": {
+        "type": "zeebe:input",
+        "name": "authentication.oauthTokenEndpoint"
+      },
+      "constraints": {
+        "notEmpty": true
+      },
+      "condition": {
+        "property": "authType",
+        "equals": "oauth-client-credentials-flow"
+      }
+    },
+    {
+      "label": "Client ID",
+      "description": "CXone application Client ID. Use {{secrets.CXONE_CLIENT_ID}}",
+      "type": "String",
+      "group": "authentication",
+      "feel": "optional",
+      "binding": {
+        "type": "zeebe:input",
+        "name": "authentication.clientId"
+      },
+      "constraints": {
+        "notEmpty": true
+      },
+      "condition": {
+        "property": "authType",
+        "equals": "oauth-client-credentials-flow"
+      }
+    },
+    {
+      "label": "Client Secret",
+      "description": "CXone application Client Secret. Use {{secrets.CXONE_CLIENT_SECRET}}",
+      "type": "String",
+      "group": "authentication",
+      "feel": "optional",
+      "binding": {
+        "type": "zeebe:input",
+        "name": "authentication.clientSecret"
+      },
+      "constraints": {
+        "notEmpty": true
+      },
+      "condition": {
+        "property": "authType",
+        "equals": "oauth-client-credentials-flow"
+      }
+    },
+    {
+      "label": "Client Authentication",
+      "description": "How to send client credentials to CXone token endpoint",
+      "type": "Dropdown",
+      "value": "basicAuthHeader",
+      "group": "authentication",
+      "choices": [
+        {
+          "name": "Send as Basic Auth header",
+          "value": "basicAuthHeader"
+        },
+        {
+          "name": "Send client credentials in body",
+          "value": "credentialsBody"
+        }
+      ],
+      "binding": {
+        "type": "zeebe:input",
+        "name": "authentication.clientAuthentication"
+      },
+      "condition": {
+        "property": "authType",
+        "equals": "oauth-client-credentials-flow"
+      }
+    },
+
+    {
+      "id": "operationGroup",
+      "label": "API Group",
+      "description": "Which CXone API family to use",
+      "type": "Dropdown",
+      "value": "admin",
+      "group": "operation",
+      "choices": [
+        {
+          "name": "Admin API — Agents, Skills, Teams",
+          "value": "admin"
+        },
+        {
+          "name": "Patron API — Work Items, Callbacks, Chats",
+          "value": "patron"
+        },
+        {
+          "name": "Agent API — Sessions, State Management",
+          "value": "agent"
+        },
+        {
+          "name": "Real-Time Data — Queues, Agent States, SLAs",
+          "value": "realtime"
+        },
+        {
+          "name": "Reporting API — Historical Metrics",
+          "value": "reporting"
+        },
+        {
+          "name": "Digital Engagement — Omnichannel Messaging",
+          "value": "digital"
+        },
+        {
+          "name": "Custom — Build your own endpoint",
+          "value": "custom"
+        }
+      ],
+      "binding": {
+        "type": "zeebe:input",
+        "name": "operationGroup"
+      }
+    },
+
+    {
+      "id": "adminOperation",
+      "label": "Admin Operation",
+      "description": "Select the Admin API operation to perform",
+      "type": "Dropdown",
+      "value": "getAgents",
+      "group": "operation",
+      "choices": [
+        {
+          "name": "Get Agents",
+          "value": "getAgents"
+        },
+        {
+          "name": "Get Agent by ID",
+          "value": "getAgentById"
+        },
+        {
+          "name": "Get Skills",
+          "value": "getSkills"
+        },
+        {
+          "name": "Get Teams",
+          "value": "getTeams"
+        },
+        {
+          "name": "Update Agent Skill Assignments",
+          "value": "updateAgentSkills"
+        },
+        {
+          "name": "Get Contacts (Active)",
+          "value": "getContacts"
+        }
+      ],
+      "binding": {
+        "type": "zeebe:input",
+        "name": "adminOperation"
+      },
+      "condition": {
+        "property": "operationGroup",
+        "equals": "admin"
+      }
+    },
+    {
+      "id": "patronOperation",
+      "label": "Patron Operation",
+      "description": "Select the Patron API operation to perform",
+      "type": "Dropdown",
+      "value": "createWorkItem",
+      "group": "operation",
+      "choices": [
+        {
+          "name": "Create Work Item",
+          "value": "createWorkItem"
+        },
+        {
+          "name": "Request Callback",
+          "value": "requestCallback"
+        },
+        {
+          "name": "Start Chat Session",
+          "value": "startChat"
+        }
+      ],
+      "binding": {
+        "type": "zeebe:input",
+        "name": "patronOperation"
+      },
+      "condition": {
+        "property": "operationGroup",
+        "equals": "patron"
+      }
+    },
+    {
+      "id": "agentOperation",
+      "label": "Agent Operation",
+      "description": "Select the Agent API operation to perform",
+      "type": "Dropdown",
+      "value": "startSession",
+      "group": "operation",
+      "choices": [
+        {
+          "name": "Start Agent Session",
+          "value": "startSession"
+        },
+        {
+          "name": "Get Agent Session",
+          "value": "getSession"
+        },
+        {
+          "name": "Set Agent State",
+          "value": "setAgentState"
+        },
+        {
+          "name": "End Agent Session",
+          "value": "endSession"
+        }
+      ],
+      "binding": {
+        "type": "zeebe:input",
+        "name": "agentOperation"
+      },
+      "condition": {
+        "property": "operationGroup",
+        "equals": "agent"
+      }
+    },
+    {
+      "id": "realtimeOperation",
+      "label": "Real-Time Data Operation",
+      "description": "Select the Real-Time Data API operation to perform",
+      "type": "Dropdown",
+      "value": "getAgentStates",
+      "group": "operation",
+      "choices": [
+        {
+          "name": "Get Agent States",
+          "value": "getAgentStates"
+        },
+        {
+          "name": "Get Skill Queue Summary",
+          "value": "getSkillSummary"
+        },
+        {
+          "name": "Get Agent Activity",
+          "value": "getAgentActivity"
+        }
+      ],
+      "binding": {
+        "type": "zeebe:input",
+        "name": "realtimeOperation"
+      },
+      "condition": {
+        "property": "operationGroup",
+        "equals": "realtime"
+      }
+    },
+    {
+      "id": "reportingOperation",
+      "label": "Reporting Operation",
+      "description": "Select the Reporting API operation to perform",
+      "type": "Dropdown",
+      "value": "getContactHistory",
+      "group": "operation",
+      "choices": [
+        {
+          "name": "Get Contact History",
+          "value": "getContactHistory"
+        },
+        {
+          "name": "Get Performance Summary",
+          "value": "getPerformanceSummary"
+        },
+        {
+          "name": "Run Custom Report",
+          "value": "runCustomReport"
+        }
+      ],
+      "binding": {
+        "type": "zeebe:input",
+        "name": "reportingOperation"
+      },
+      "condition": {
+        "property": "operationGroup",
+        "equals": "reporting"
+      }
+    },
+    {
+      "id": "digitalOperation",
+      "label": "Digital Engagement Operation",
+      "description": "Select the Digital Engagement API operation to perform",
+      "type": "Dropdown",
+      "value": "sendMessage",
+      "group": "operation",
+      "choices": [
+        {
+          "name": "Send Outbound Message",
+          "value": "sendMessage"
+        },
+        {
+          "name": "Get Conversation",
+          "value": "getConversation"
+        },
+        {
+          "name": "Create Digital Contact",
+          "value": "createDigitalContact"
+        }
+      ],
+      "binding": {
+        "type": "zeebe:input",
+        "name": "digitalOperation"
+      },
+      "condition": {
+        "property": "operationGroup",
+        "equals": "digital"
+      }
+    },
+
+    {
+      "label": "HTTP Method",
+      "description": "The HTTP method for the API call (auto-set for built-in operations, configure for custom)",
+      "type": "Dropdown",
+      "value": "get",
+      "group": "operationDetails",
+      "choices": [
+        { "name": "GET", "value": "get" },
+        { "name": "POST", "value": "post" },
+        { "name": "PUT", "value": "put" },
+        { "name": "PATCH", "value": "patch" },
+        { "name": "DELETE", "value": "delete" }
+      ],
+      "binding": {
+        "type": "zeebe:input",
+        "name": "method"
+      }
+    },
+    {
+      "id": "apiVersion",
+      "label": "API Version",
+      "description": "CXone API version prefix",
+      "type": "String",
+      "value": "v31.0",
+      "group": "operationDetails",
+      "feel": "optional",
+      "binding": {
+        "type": "zeebe:input",
+        "name": "apiVersion"
+      }
+    },
+    {
+      "label": "URL",
+      "description": "Full API URL — constructed automatically from base URL + version + operation path. Override for custom endpoints.",
+      "type": "Text",
+      "group": "operationDetails",
+      "feel": "required",
+      "binding": {
+        "type": "zeebe:input",
+        "name": "url"
+      },
+      "value": "=cxoneBaseUrl + \"/incontactapi/services/\" + apiVersion + \"/\" + operationPath",
+      "constraints": {
+        "notEmpty": true
+      }
+    },
+    {
+      "id": "operationPath",
+      "label": "API Path",
+      "description": "The REST path for this operation (e.g. agents, work-items). Auto-set for built-in operations or enter your own.",
+      "type": "String",
+      "value": "agents",
+      "group": "operationDetails",
+      "feel": "optional",
+      "binding": {
+        "type": "zeebe:input",
+        "name": "operationPath"
+      },
+      "constraints": {
+        "notEmpty": true
+      }
+    },
+
+    {
+      "label": "Agent ID",
+      "description": "The numeric CXone Agent ID",
+      "type": "String",
+      "group": "operationDetails",
+      "feel": "optional",
+      "binding": {
+        "type": "zeebe:input",
+        "name": "agentId"
+      },
+      "condition": {
+        "property": "adminOperation",
+        "oneOf": ["getAgentById", "updateAgentSkills"]
+      }
+    },
+    {
+      "label": "Skill ID",
+      "description": "The CXone Skill ID to target (for routing work items, callbacks, etc.)",
+      "type": "String",
+      "group": "operationDetails",
+      "feel": "optional",
+      "binding": {
+        "type": "zeebe:input",
+        "name": "skillId"
+      },
+      "condition": {
+        "property": "operationGroup",
+        "oneOf": ["patron", "realtime"]
+      }
+    },
+    {
+      "label": "Point of Contact",
+      "description": "CXone Point of Contact for work item routing",
+      "type": "String",
+      "group": "operationDetails",
+      "feel": "optional",
+      "binding": {
+        "type": "zeebe:input",
+        "name": "pointOfContact"
+      },
+      "condition": {
+        "property": "patronOperation",
+        "oneOf": ["createWorkItem", "requestCallback"]
+      }
+    },
+    {
+      "label": "Work Item Payload / Body",
+      "description": "JSON payload for the work item or custom request body",
+      "type": "Text",
+      "group": "operationDetails",
+      "feel": "required",
+      "optional": true,
+      "binding": {
+        "type": "zeebe:input",
+        "name": "body"
+      }
+    },
+    {
+      "label": "Query Parameters",
+      "description": "Optional query parameters as a FEEL context (e.g. {updatedSince: \"2024-01-01\", fields: \"agentId,firstName\"})",
+      "type": "Text",
+      "group": "operationDetails",
+      "feel": "required",
+      "optional": true,
+      "binding": {
+        "type": "zeebe:input",
+        "name": "queryParameters"
+      }
+    },
+    {
+      "label": "Custom Headers",
+      "description": "Additional HTTP headers as a FEEL context (e.g. {X-Custom-Header: \"value\"})",
+      "type": "Text",
+      "group": "operationDetails",
+      "feel": "required",
+      "optional": true,
+      "binding": {
+        "type": "zeebe:input",
+        "name": "headers"
+      }
+    },
+    {
+      "label": "Connection Timeout (seconds)",
+      "description": "Connection timeout in seconds",
+      "type": "String",
+      "value": "20",
+      "group": "operationDetails",
+      "feel": "optional",
+      "optional": true,
+      "binding": {
+        "type": "zeebe:input",
+        "name": "connectionTimeoutInSeconds"
+      }
+    },
+    {
+      "label": "Read Timeout (seconds)",
+      "description": "Read timeout in seconds",
+      "type": "String",
+      "value": "20",
+      "group": "operationDetails",
+      "feel": "optional",
+      "optional": true,
+      "binding": {
+        "type": "zeebe:input",
+        "name": "readTimeoutInSeconds"
+      }
+    },
+
+    {
+      "label": "Result Variable",
+      "description": "Name of variable to store the CXone API response in",
+      "type": "String",
+      "group": "output",
+      "value": "cxoneResult",
+      "binding": {
+        "type": "zeebe:taskHeader",
+        "key": "resultVariable"
+      }
+    },
+    {
+      "label": "Result Expression",
+      "description": "FEEL expression to map the CXone response into process variables",
+      "type": "Text",
+      "group": "output",
+      "feel": "required",
+      "optional": true,
+      "binding": {
+        "type": "zeebe:taskHeader",
+        "key": "resultExpression"
+      }
+    },
+
+    {
+      "label": "Error Expression",
+      "description": "Expression to map CXone errors to BPMN errors",
+      "type": "Text",
+      "group": "errors",
+      "feel": "required",
+      "value": "if error.code = \"401\" then bpmnError(\"CXONE_AUTH_ERROR\", \"CXone authentication failed — check token or credentials\")\nelse if error.code = \"403\" then bpmnError(\"CXONE_FORBIDDEN\", \"CXone permission denied — check role permissions\")\nelse if error.code = \"404\" then bpmnError(\"CXONE_NOT_FOUND\", \"CXone resource not found\")\nelse if error.code = \"429\" then bpmnError(\"CXONE_RATE_LIMIT\", \"CXone API rate limit exceeded — retry later\")\nelse if error.code = \"500\" then bpmnError(\"CXONE_SERVER_ERROR\", \"CXone internal server error\")\nelse null",
+      "binding": {
+        "type": "zeebe:taskHeader",
+        "key": "errorExpression"
+      }
+    },
+    {
+      "label": "Retry Count",
+      "description": "Number of retries on failure",
+      "type": "String",
+      "value": "3",
+      "group": "errors",
+      "feel": "optional",
+      "optional": true,
+      "binding": {
+        "type": "zeebe:taskHeader",
+        "key": "retryCount"
+      }
+    },
+    {
+      "label": "Retry Backoff (ISO 8601)",
+      "description": "Backoff between retries (e.g. PT10S for 10 seconds)",
+      "type": "String",
+      "value": "PT10S",
+      "group": "errors",
+      "feel": "optional",
+      "optional": true,
+      "binding": {
+        "type": "zeebe:taskHeader",
+        "key": "retryBackoff"
+      }
+    }
+  ]
+}
