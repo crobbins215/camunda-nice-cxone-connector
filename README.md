@@ -8,7 +8,7 @@
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green)](LICENSE)
 
 **📦 Camunda Marketplace**: https://marketplace.camunda.com/en-US/apps/797170
-**🔄 CXone Exchange**: https://cxexchange.niceincontact.com/en-US/apps/792411
+**🔄 CXone Exchange**: https://cxexchange.niceincontact.com/en-US/apps/794419/camunda
 
 ---
 
@@ -394,7 +394,7 @@ Apache License 2.0 — see [LICENSE](LICENSE).
 ## Links
 
 - [Camunda Marketplace listing](https://marketplace.camunda.com/en-US/apps/797170)
-- [CXone Exchange listing](https://cxexchange.niceincontact.com/en-US/apps/792411)
+- [CXone Exchange listing](https://cxexchange.niceincontact.com/en-US/apps/794419/camunda)
 - [NICE CXone Developer Portal](https://developer.niceincontact.com)
 - [CXone API Reference](https://developer.niceincontact.com/API)
 - [Camunda Connector Templates Documentation](https://docs.camunda.io/docs/components/connectors/custom-built-connectors/connector-templates/)
