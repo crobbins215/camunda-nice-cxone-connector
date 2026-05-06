@@ -22,8 +22,6 @@
 
 ## Architecture
 
-![Architecture diagram](docs/architecture-diagram.png)
-
 **How it works**: Element templates are JSON configuration files that bind to Camunda's built-in REST Connector runtime (`io.camunda:http-json:1`). All communication is **outbound REST calls** from Camunda to CXone — no inbound webhooks, no agents installed on the CXone side, no shared services.
 
 See [`docs/architecture-diagram.txt`](docs/architecture-diagram.txt) for the full ASCII version.
